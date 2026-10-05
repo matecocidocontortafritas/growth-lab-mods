@@ -1,0 +1,17 @@
+{
+  "name": "pedidos",
+  "version": "0.1.0",
+  "description": "/pedidos: panel con los pedidos de hoy de tu Tiendanube y cuánto vendiste, sin gastar tokens",
+  "author": { "name": "Growth Lab" },
+  "license": "MIT",
+  "keywords": ["tiendanube", "nuvemshop", "ventas", "pedidos", "mod"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "tiendanube_tool": {
+      "type": "string",
+      "title": "Herramienta de Tiendanube (opcional)",
+      "description": "Dejalo vacío: el mod encuentra solo el conector oficial de Tiendanube. Completalo solo si tenés más de una tienda conectada, con el nombre completo de la herramienta (mcp__..._list_orders).",
+      "default": ""
+    }
+  }
+}

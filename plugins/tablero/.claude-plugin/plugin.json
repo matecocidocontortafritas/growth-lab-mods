@@ -1,0 +1,47 @@
+{
+  "name": "tablero",
+  "version": "0.1.0",
+  "description": "/tablero: ventas de Tiendanube + tráfico de Google Analytics + Meta Ads en un panel, con MER y conversión, sin gastar tokens",
+  "author": { "name": "Growth Lab" },
+  "license": "MIT",
+  "keywords": ["tiendanube", "google-analytics", "meta-ads", "dashboard", "mod"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "ga_property": {
+      "type": "string",
+      "title": "Propiedad de Google Analytics",
+      "description": "El número de tu propiedad GA4 (ej: 123456789). Si no lo sabés, preguntale a Claude: \"listame mis propiedades de Google Analytics con su ID\".",
+      "default": ""
+    },
+    "meta_account": {
+      "type": "string",
+      "title": "Cuenta publicitaria de Meta",
+      "description": "El ID de tu cuenta de anuncios, empieza con act_ (ej: act_123456789). Si no lo sabés, preguntale a Claude: \"listame mis cuentas publicitarias de Meta con su ID\".",
+      "default": ""
+    },
+    "meta_nombre": {
+      "type": "string",
+      "title": "Nombre a mostrar de la cuenta de Meta (opcional)",
+      "description": "Cómo querés que aparezca la cuenta en el panel. Vacío muestra el ID.",
+      "default": ""
+    },
+    "tiendanube_tool": {
+      "type": "string",
+      "title": "Herramienta de Tiendanube (opcional)",
+      "description": "Dejalo vacío: el mod encuentra solo el conector de Tiendanube. Completalo solo si tenés más de una tienda conectada (mcp__..._list_orders).",
+      "default": ""
+    },
+    "ga_tool": {
+      "type": "string",
+      "title": "Herramienta de Analytics (opcional)",
+      "description": "Dejalo vacío: el mod encuentra solo el MCP de Google Analytics (mcp__..._run_report).",
+      "default": ""
+    },
+    "meta_tool": {
+      "type": "string",
+      "title": "Herramienta de Meta Ads (opcional)",
+      "description": "Dejalo vacío: el mod encuentra solo el MCP de Meta Ads.",
+      "default": ""
+    }
+  }
+}

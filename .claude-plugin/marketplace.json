@@ -1,0 +1,22 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "growth-lab-mods",
+  "description": "Mods de Claude Code para e-commerce: ventas de Tiendanube, Google Analytics y Meta Ads en paneles que no gastan tokens.",
+  "owner": { "name": "Growth Lab" },
+  "plugins": [
+    {
+      "name": "pedidos",
+      "description": "/pedidos: los pedidos de hoy de tu Tiendanube y cuánto vendiste, en un panel al costado de la conversación.",
+      "source": "./plugins/pedidos",
+      "category": "productivity",
+      "author": { "name": "Growth Lab" }
+    },
+    {
+      "name": "tablero",
+      "description": "/tablero: ventas de Tiendanube + tráfico de Google Analytics + Meta Ads, con MER y conversión, para hoy / 7 / 30 días.",
+      "source": "./plugins/tablero",
+      "category": "productivity",
+      "author": { "name": "Growth Lab" }
+    }
+  ]
+}

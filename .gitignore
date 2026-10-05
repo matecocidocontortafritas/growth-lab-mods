@@ -1,0 +1,7 @@
+# Lo que Claude Code genera al cargar un mod
+.claude-plugin/types/
+plugins/*/.claude-plugin/types/
+plugins/*/tsconfig.json
+last-error.txt
+node_modules/
+.DS_Store
