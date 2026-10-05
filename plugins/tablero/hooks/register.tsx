@@ -36,26 +36,28 @@ type Fuente3 = 'tiendanube' | 'ga' | 'meta'
 /** Error con los pasos para resolverlo, que el panel muestra tal cual. */
 export class Pasos extends Error {}
 
-const BUSCAR: Record<Fuente3, { sufijo: string; pista: RegExp; nombre: string; conectar: string }> = {
+const BUSCAR: Record<Fuente3, { sufijos: string[]; pista: RegExp; nombre: string; conectar: string }> = {
   tiendanube: {
-    sufijo: '__list_orders',
+    sufijos: ['__list_orders'],
     pista: /tiendanube|nuvemshop|tienda nube/i,
     nombre: 'Tiendanube',
     conectar:
       'Conectá Tiendanube en claude.ai → Configuración → Conectores (o agregá https://admin-mcp.tiendanube.com como conector) y abrí una sesión nueva.',
   },
   ga: {
-    sufijo: '__run_report',
+    sufijos: ['__run_report'],
     pista: /analytics/i,
     nombre: 'Google Analytics',
     conectar:
       'Instalá el MCP oficial de Google Analytics (github.com/googleanalytics/google-analytics-mcp, ver README → Conectores) y abrí una sesión nueva.',
   },
   meta: {
-    sufijo: '__get_account_summary',
+    // Primero el MCP oficial de Meta (mcp.facebook.com/ads); si no está, uno con get_account_summary.
+    sufijos: ['__ads_get_ad_entities', '__get_account_summary'],
     pista: /meta|facebook|ads/i,
     nombre: 'Meta Ads',
-    conectar: 'Conectá el MCP de Meta Ads (ver README → Conectores) y abrí una sesión nueva.',
+    conectar:
+      'Conectá el MCP oficial de Meta en claude.ai → Configuración → Conectores → Agregar conector personalizado → https://mcp.facebook.com/ads, y abrí una sesión nueva.',
   },
 }
 
@@ -64,8 +66,13 @@ async function herramienta($: EngineInterface, fuente: Fuente3) {
   const ya = encontradas[fuente]
   if (ya) return ya
   const b = BUSCAR[fuente]
-  const candidatas = (await $.tool.list()).filter(t => t.mcp && t.name.endsWith(b.sufijo))
-  const t = candidatas.find(c => b.pista.test(c.name + ' ' + c.description)) ?? candidatas[0]
+  const tools = (await $.tool.list()).filter(t => t.mcp)
+  let t: { name: string } | undefined
+  for (const sufijo of b.sufijos) {
+    const candidatas = tools.filter(c => c.name.endsWith(sufijo))
+    t = candidatas.find(c => b.pista.test(c.name + ' ' + c.description)) ?? candidatas[0]
+    if (t) break
+  }
   if (!t) throw new Pasos(`No encontré el conector de ${b.nombre}. ${b.conectar}`)
   encontradas[fuente] = t.name
   return t.name
@@ -227,6 +234,7 @@ async function cargarTrafico($: EngineInterface, p: Periodo, consent?: string): 
 
 type MetaSummary = Record<string, string | undefined>
 
+/** Lee la respuesta de un MCP con get_account_summary (actual y anterior en una llamada). */
 export function resumirMeta(text: string): Meta {
   let body = JSON.parse(text) as { result?: string; summary?: MetaSummary; prev_summary?: MetaSummary; error?: string }
   if (typeof body.result === 'string') body = JSON.parse(body.result)
@@ -243,6 +251,35 @@ export function resumirMeta(text: string): Meta {
   }
 }
 
+type MetaEntidad = {
+  amount_spent?: { value?: string } | string
+  omni_purchase?: string
+  purchase_roas?: string
+  clicks?: string
+  impressions?: string
+}
+
+/** Lee la respuesta de ads_get_ad_entities del MCP oficial de Meta, a nivel cuenta. */
+export function leerEntidadMeta(text: string) {
+  const body = JSON.parse(text) as { ad_entities?: string | MetaEntidad[]; error?: unknown }
+  if (body.error) throw new Error(JSON.stringify(body.error).slice(0, 200))
+  const lista = typeof body.ad_entities === 'string' ? (JSON.parse(body.ad_entities) as MetaEntidad[]) : body.ad_entities ?? []
+  const e = lista[0] ?? {}
+  const gasto = Number(typeof e.amount_spent === 'object' ? e.amount_spent.value ?? 0 : e.amount_spent ?? 0)
+  return {
+    gasto,
+    compras: Number(e.omni_purchase ?? 0),
+    ingresos: Number(e.purchase_roas ?? 0) * gasto,
+    clicks: Number(e.clicks ?? 0),
+    impresiones: Number(e.impressions ?? 0),
+  }
+}
+
+/** Agrupa las llamadas de Meta de esta sesión, como pide el MCP oficial. */
+const conversacionMeta = Array.from({ length: 20 }, () =>
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 62)],
+).join('')
+
 async function cargarMeta($: EngineInterface, p: Periodo, consent?: string): Promise<Meta> {
   if (!config.metaAccount) {
     throw new Pasos(
@@ -250,9 +287,33 @@ async function cargarMeta($: EngineInterface, p: Periodo, consent?: string): Pro
         '¿No lo sabés? Preguntale a Claude: "listame mis cuentas publicitarias de Meta con su ID".',
     )
   }
-  const cuenta = config.metaAccount.startsWith('act_') ? config.metaAccount : `act_${config.metaAccount}`
+  const numero = config.metaAccount.replace(/^act_/, '')
+  const tool = await herramienta($, 'meta')
+
+  if (tool.endsWith('__ads_get_ad_entities')) {
+    const pedir = (desde: string, hasta: string) =>
+      llamar($, 'meta', {
+        ad_account_id: numero,
+        level: 'ad_account',
+        fields: ['amount_spent', 'omni_purchase', 'purchase_roas', 'clicks', 'impressions'],
+        time_range: JSON.stringify({ since: desde, until: hasta }),
+        include_additional_context: false,
+        client_conversation_id: conversacionMeta,
+      }, consent)
+    const [ta, tb] = await Promise.all([pedir(p.desde, p.hasta), pedir(p.prevDesde, p.prevHasta)])
+    const a = leerEntidadMeta(ta)
+    const b = leerEntidadMeta(tb)
+    return {
+      gasto: { actual: a.gasto, anterior: b.gasto },
+      compras: { actual: a.compras, anterior: b.compras },
+      ingresosMeta: { actual: a.ingresos, anterior: b.ingresos },
+      clicks: { actual: a.clicks, anterior: b.clicks },
+      impresiones: { actual: a.impresiones, anterior: b.impresiones },
+    }
+  }
+
   const text = await llamar($, 'meta', {
-    account_id: cuenta,
+    account_id: `act_${numero}`,
     date_from: p.desde,
     date_to: p.hasta,
     prev_date_from: p.prevDesde,

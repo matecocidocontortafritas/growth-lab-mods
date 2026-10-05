@@ -141,3 +141,40 @@ test('sin /config ni conectores, cada bloque explica qué hacer', async ($, on) 
   expect(all).toContain('Falta tu propiedad de Analytics')
   expect(all).toContain('Falta tu cuenta de Meta')
 })
+
+test('con el MCP oficial de Meta pide actual y anterior, y calcula los ingresos con el ROAS', OPCIONES, async ($, on) => {
+  mock.clock(on, { now: NOW })
+  const OFICIAL = 'mcp__meta-oficial__ads_get_ad_entities'
+  // Si están los dos servidores de Meta, gana el oficial.
+  on('tool.list', async () => ({ value: [...TOOLS, { name: OFICIAL, description: 'Retrieves live or draft campaigns, ad sets, ads, and their metrics.', mcp: true }] }))
+  const meta: Record<string, unknown>[] = []
+  on('tool.call', async ($, e) => {
+    const args = { ...e } as Record<string, unknown>
+    const tool = String(args.tool)
+    if (tool === OFICIAL) {
+      meta.push(args)
+      const hoy = String(args.time_range).includes('2026-10-05')
+      const entidad = hoy
+        ? { id: '1', name: 'X', amount_spent: { value: '100000', unit: 'ARS' }, omni_purchase: '5', purchase_roas: '5', clicks: '10', impressions: '1000' }
+        : { id: '1', name: 'X', amount_spent: { value: '200000', unit: 'ARS' }, omni_purchase: '4', purchase_roas: '2', clicks: '20', impressions: '2000' }
+      return { result: {}, text: JSON.stringify({ ad_entities: JSON.stringify([entidad]) }) }
+    }
+    if (tool.endsWith('run_report')) return { result: {}, text: JSON.stringify(GA) }
+    if (tool.endsWith('list_orders')) {
+      const orders = String(args.completed_at_from).startsWith('2026-10-05') ? HOY : AYER
+      return { result: {}, text: JSON.stringify({ orders, total: orders.length }) }
+    }
+    throw new Error(`no debería llamar a ${tool}`)
+  })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'refresh' })
+  const all = (await ui.find({ type: 'Box' }))?.text ?? ''
+  expect(all).toContain('$100.000') // gasto de hoy
+  expect(all).toContain('▼50%') // 100k vs 200k
+  expect(all).toContain('5,0x') // ROAS Meta: 500k / 100k
+  expect(all).toContain('3,0x') // MER: 300k / 100k
+  expect(meta).toHaveLength(2)
+  expect(meta[0]).toEqual(expect.objectContaining({ ad_account_id: '987654321', level: 'ad_account' }))
+  expect(String(meta[0]?.client_conversation_id)).toMatch(/^[A-Za-z0-9]{20}$/)
+})

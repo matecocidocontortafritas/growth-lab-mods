@@ -128,13 +128,13 @@ Para los detalles, seguí el README del repo de Google.
 
 #### Meta Ads (para `/tablero`)
 
-> **Estado:** hoy el bloque de Meta funciona con MCP de Meta Ads que tengan la herramienta `get_account_summary`. El soporte para el **MCP oficial de Meta** (`https://mcp.facebook.com/ads`) está en camino. Mientras tanto, si lo conectás, el bloque de Meta te va a avisar que no encontró la herramienta, y Tiendanube y Analytics se siguen viendo igual.
-
-Para conectar el MCP oficial de Meta:
+Es el MCP **oficial** de Meta (`https://mcp.facebook.com/ads`). Para conectarlo:
 
 1. [claude.ai](https://claude.ai) → **Configuración** → **Conectores** → **Agregar conector personalizado**.
 2. Pegá `https://mcp.facebook.com/ads`.
 3. Iniciá sesión con Facebook y aceptá los permisos de tu cuenta publicitaria.
+
+El tablero usa solo `ads_get_ad_entities`, para **leer** gasto, compras y ROAS de la cuenta. También funciona con otros MCP de Meta Ads que tengan `get_account_summary`.
 
 > Abrí una **sesión nueva** de Claude Code después de conectar algo, así la ve.
 
@@ -187,7 +187,7 @@ Agregá cada nombre que te muestre el panel a la lista `permissions.allow` de tu
     "allow": [
       "mcp__xxxx__list_orders",
       "mcp__analytics-mcp__run_report",
-      "mcp__xxxx__get_account_summary"
+      "mcp__xxxx__ads_get_ad_entities"
     ]
   }
 }
@@ -220,7 +220,7 @@ Un mod corre dentro de Claude Code con tus mismos permisos, así que **instalá 
 
 Estos mods:
 
-- **Solo leen** datos: usan `list_orders` (Tiendanube), `run_report` (Analytics) y `get_account_summary` (Meta).
+- **Solo leen** datos: usan `list_orders` (Tiendanube), `run_report` (Analytics) y `ads_get_ad_entities` (Meta).
 - **No se conectan a internet** por su cuenta, **no leen tus archivos** y **no leen tus claves**: todo pasa por los conectores que vos ya autorizaste.
 
 No hace falta creernos: Claude Code tiene un comando que te muestra qué hace un mod antes de instalarlo, sin ejecutarlo. Bajá este repo y corré:
