@@ -1,6 +1,6 @@
 {
   "name": "tablero",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "/tablero: ventas de Tiendanube + tráfico de Google Analytics + Meta Ads en un panel, con MER y conversión, sin gastar tokens",
   "author": { "name": "Growth Lab" },
   "license": "MIT",

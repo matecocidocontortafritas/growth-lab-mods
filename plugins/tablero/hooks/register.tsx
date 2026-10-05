@@ -4,8 +4,11 @@ import type { EngineInterface, Register, ToolCallArgs, ToolCallResult } from 'cl
 import type { Fuente, Meta, Par, Rango, Tablero, Trafico, Ventas } from '../types'
 
 const PANE = 'tablero'
-const PAGE_SIZE = 200
-const MAX_PAGES = 30
+// Cada pedido trae productos, cliente y envío: con más de ~30 por página la respuesta
+// supera el tamaño que Claude Code acepta de un conector y llega un error en vez de datos.
+const PAGE_SIZE = 30
+const MAX_PAGES = 100
+const EN_PARALELO = 4
 const REFRESH_MS = 10 * 60 * 1000
 const AR_OFFSET_MS = -3 * 60 * 60 * 1000
 const DIA_MS = 24 * 60 * 60 * 1000
@@ -152,9 +155,17 @@ export function resumirVentas(orders: RawOrder[], desde: string, hasta: string) 
   return { cobrado, pedidos, pendiente }
 }
 
+/** JSON de un conector; si no lo es, el error muestra lo que respondió. */
+export function leerJson<T>(text: string): T {
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new Error(text.slice(0, 200) || 'el conector respondió vacío')
+  }
+}
+
 async function pedidosEntre($: EngineInterface, desde: string, hasta: string, consent?: string) {
-  const raw: RawOrder[] = []
-  for (let page = 1; page <= MAX_PAGES; page++) {
+  const pagina = async (page: number) => {
     const text = await llamar($, 'tiendanube', {
       completed_at_from: `${desde}T00:00:00-03:00`,
       completed_at_to: `${hasta}T23:59:59-03:00`,
@@ -162,10 +173,15 @@ async function pedidosEntre($: EngineInterface, desde: string, hasta: string, co
       limit: PAGE_SIZE,
       page,
     }, consent)
-    const res = JSON.parse(text) as { orders?: RawOrder[]; total?: number }
-    const orders = res.orders ?? []
-    raw.push(...orders)
-    if (orders.length === 0 || raw.length >= (res.total ?? 0)) break
+    return leerJson<{ orders?: RawOrder[]; total?: number }>(text)
+  }
+  const primera = await pagina(1)
+  const raw: RawOrder[] = [...(primera.orders ?? [])]
+  const paginas = Math.min(MAX_PAGES, Math.ceil((primera.total ?? 0) / PAGE_SIZE))
+  const resto = Array.from({ length: Math.max(0, paginas - 1) }, (_, i) => i + 2)
+  for (let i = 0; i < resto.length; i += EN_PARALELO) {
+    const tanda = await Promise.all(resto.slice(i, i + EN_PARALELO).map(pagina))
+    for (const res of tanda) raw.push(...(res.orders ?? []))
   }
   return resumirVentas(raw, desde, hasta)
 }
@@ -227,7 +243,7 @@ async function cargarTrafico($: EngineInterface, p: Periodo, consent?: string): 
     metrics: ['sessions', 'totalUsers'],
     limit: 50,
   }, consent)
-  const r = JSON.parse(text) as GaReport & { error?: string }
+  const r = leerJson<GaReport & { error?: string }>(text)
   if (r.error) throw new Error(r.error.slice(0, 200))
   return resumirTrafico(r)
 }

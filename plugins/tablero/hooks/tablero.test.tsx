@@ -178,3 +178,46 @@ test('con el MCP oficial de Meta pide actual y anterior, y calcula los ingresos 
   expect(meta[0]).toEqual(expect.objectContaining({ ad_account_id: '987654321', level: 'ad_account' }))
   expect(String(meta[0]?.client_conversation_id)).toMatch(/^[A-Za-z0-9]{20}$/)
 })
+
+test("30 días: pagina de a 30, en paralelo, y junta todos los pedidos", OPCIONES, async ($, on) => {
+  mock.clock(on, { now: NOW })
+  on("tool.list", async () => ({ value: TOOLS }))
+  const paginas: number[] = []
+  // 75 pedidos de hoy pagados de $1.000 cada uno
+  const todos = Array.from({ length: 75 }, () => order("2026-10-05T15:00:00Z", "1000", "paid"))
+  on("tool.call", async ($, e) => {
+    const args = { ...e } as Record<string, unknown>
+    const tool = String(args.tool)
+    if (tool.endsWith("list_orders")) {
+      if (!String(args.completed_at_from).startsWith("2026-09-06")) return { result: {}, text: JSON.stringify({ orders: [], total: 0 }) }
+      const page = Number(args.page)
+      paginas.push(page)
+      expect(args.limit).toBe(30)
+      return { result: {}, text: JSON.stringify({ orders: todos.slice((page - 1) * 30, page * 30), total: todos.length }) }
+    }
+    if (tool.endsWith("run_report")) return { result: {}, text: JSON.stringify(GA) }
+    return { result: {}, text: JSON.stringify(META) }
+  })
+
+  const ui = await $.ui.mount({ ...PANE, surface: "terminal" })
+  await ui.press({ key: "r-30d" })
+  const all = (await ui.find({ type: "Box" }))?.text ?? ""
+  expect(paginas.sort()).toEqual([1, 2, 3])
+  expect(all).toContain("$75.000")
+  expect(all).toContain("75")
+})
+
+test("si el conector responde un error en texto, el panel lo muestra", OPCIONES, async ($, on) => {
+  mock.clock(on, { now: NOW })
+  on("tool.list", async () => ({ value: TOOLS }))
+  on("tool.call", async ($, e) => {
+    const tool = String((e as { tool: string }).tool)
+    if (tool.endsWith("list_orders")) return { result: {}, text: "Error: MCP tool response exceeds maximum allowed tokens" }
+    if (tool.endsWith("run_report")) return { result: {}, text: JSON.stringify(GA) }
+    return { result: {}, text: JSON.stringify(META) }
+  })
+
+  const ui = await $.ui.mount({ ...PANE, surface: "terminal" })
+  await ui.press({ key: "refresh" })
+  expect((await ui.find({ type: "Box" }))?.text ?? "").toContain("exceeds maximum allowed tokens")
+})

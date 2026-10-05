@@ -1,6 +1,6 @@
 {
   "name": "pedidos",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "/pedidos: panel con los pedidos de hoy de tu Tiendanube y cuánto vendiste, sin gastar tokens",
   "author": { "name": "Growth Lab" },
   "license": "MIT",

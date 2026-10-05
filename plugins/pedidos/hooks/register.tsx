@@ -4,7 +4,7 @@ import type { EngineInterface, Register, ToolCallArgs, ToolCallResult } from 'cl
 import type { Pedido, Snapshot } from '../types'
 
 const PANE = 'pedidos'
-const PAGE_SIZE = 50
+const PAGE_SIZE = 30 // más grande, la respuesta del conector supera el límite de Claude Code
 const MAX_PAGES = 20
 const REFRESH_MS = 5 * 60 * 1000
 const AR_OFFSET_MS = -3 * 60 * 60 * 1000
