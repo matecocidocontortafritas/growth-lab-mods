@@ -7,7 +7,7 @@ Un *mod* es un pequeño programa que va dentro de Claude Code y le agrega cosas 
 | Mod | Comando | Qué muestra |
 | --- | --- | --- |
 | [pedidos](plugins/pedidos) | `/pedidos` | Los pedidos de hoy de tu Tiendanube y cuánto vendiste. |
-| [tablero](plugins/tablero) | `/tablero` | Ventas + tráfico + Meta Ads juntos, con MER y conversión, para hoy, 7 o 30 días. |
+| [tablero](plugins/tablero) | `/tablero` | Ventas + tráfico + Meta Ads de hoy en un solo panel, con MER y conversión, comparados con ayer. |
 
 ---
 
@@ -37,34 +37,43 @@ Los números de estos ejemplos son inventados.
 
 ```text
 ┌ Tablero ─────────────────────────────────────────────────────┐
-│ [ Hoy ] h  [ 7 días ] 7  [ 30 días ] 3                       │
-│ 2026-09-29 → 2026-10-05 · vs período anterior · act. 17:42   │
+│ Hoy 2026-10-05 · vs ayer completo · actualizado 17:42        │
 │                                                              │
 │ VENTAS · Tiendanube                                          │
-│ Cobrado     $8.940.000 ▲12%                                  │
-│ Pedidos     96 ▲8%                                           │
-│ Ticket      $93.125                                          │
+│ Cobrado          $1.284.500 ▼18%                             │
+│ Pedidos          14 ▼22%                                     │
+│ Ticket           $91.750                                     │
+│ Pendiente        $212.000                                    │
 │                                                              │
 │ TRÁFICO · Analytics                                          │
-│ Sesiones    11.204 ▼3%                                       │
-│ Usuarios    9.870 ▼1%                                        │
-│ Conversión  0,86%                                            │
-│ Paid Social 6.210 · Direct 2.104 · Organic Search 1.380      │
+│ Sesiones         1.588 ▼56%                                  │
+│ Usuarios         1.462 ▼55%                                  │
+│ Usuarios nuevos  492 ▼71%                                    │
+│ Sesiones/usuario 1,19 ▼8%                                    │
+│ Tiempo medio     3m 40s ▲12%                                 │
+│ Vistas producto  2.383 ▼71%                                  │
+│ Conversión       0,88%                                       │
+│ Paid Social 980 · Direct 310 · Organic Search 190            │
 │                                                              │
 │ META ADS · Mi tienda                                         │
-│ Gasto       $1.120.000 ▲5%                                   │
-│ Compras     61 ▲10%                                          │
-│ ROAS Meta   6,8x                                             │
-│ MER         8,0x                                             │
-│ MER = cobrado en Tiendanube ÷ gasto en Meta                  │
+│ Inversión        $184.400 ▼46%                               │
+│ Impresiones      47.334 ▼49%                                 │
+│ CTR              5,75% ▲2%                                   │
+│ Vistas producto  3.812 ▼52%                                  │
+│ Compras          20 ▼17%                                     │
+│ ROAS Meta        10,9x                                       │
+│ MER              7,0x                                        │
+│ MER = cobrado en Tiendanube ÷ inversión en Meta              │
 │                                                              │
 │ [ Actualizar ] r                                             │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-- **▲ / ▼** comparan con el período anterior del mismo largo. En **Hoy** se compara contra **ayer completo**, así que a media tarde es normal que todo dé abajo.
+- **▲ / ▼** comparan contra **ayer completo**, así que a media tarde es normal que casi todo dé abajo: lo que importa es cómo viene el día.
 - **Conversión** = pedidos de Tiendanube ÷ sesiones de Analytics.
-- **ROAS Meta** es el que informa Meta (lo que Meta se atribuye). **MER** es lo que cobraste de verdad en Tiendanube dividido lo que gastaste en Meta: el "ROAS real" del negocio.
+- **CTR** = clics ÷ impresiones de tus anuncios, en porcentaje.
+- **Vistas producto**: en Analytics son las vistas de productos en tu tienda (`view_item`); en Meta, las que Meta atribuye a tus anuncios.
+- **ROAS Meta** es el que informa Meta (lo que Meta se atribuye). **MER** es lo que cobraste de verdad en Tiendanube dividido lo que invertiste en Meta: el "ROAS real" del negocio.
 - Si una fuente falla o falta configurarla, ese bloque te dice qué hacer y los otros se siguen mostrando.
 
 ---
@@ -134,7 +143,7 @@ Es el MCP **oficial** de Meta (`https://mcp.facebook.com/ads`). Para conectarlo:
 2. Pegá `https://mcp.facebook.com/ads`.
 3. Iniciá sesión con Facebook y aceptá los permisos de tu cuenta publicitaria.
 
-El tablero usa solo `ads_get_ad_entities`, para **leer** gasto, compras y ROAS de la cuenta. También funciona con otros MCP de Meta Ads que tengan `get_account_summary`.
+El tablero usa solo `ads_get_ad_entities`, para **leer** inversión, impresiones, clics, vistas de producto, compras y ROAS de la cuenta. También funciona con otros MCP de Meta Ads que tengan `get_account_summary`.
 
 > Abrí una **sesión nueva** de Claude Code después de conectar algo, así la ve.
 
@@ -207,7 +216,6 @@ Agregá cada nombre que te muestre el panel a la lista `permissions.allow` de tu
 | Abrir pedidos | `/pedidos` |
 | Abrir el tablero | `/tablero` |
 | Actualizar | Botón **Actualizar** o tecla `r` |
-| Cambiar período del tablero | Botones **Hoy / 7 días / 30 días**, o teclas `h`, `7`, `3` |
 | Cerrar | La ✕ del panel |
 
 Con el panel abierto, `/pedidos` se actualiza solo cada 5 minutos y `/tablero` cada 10.
@@ -241,9 +249,31 @@ En la línea `calls:` vas a ver exactamente qué usa: herramientas (`$.tool.call
 | "No encontré el conector de …" | Conectá ese MCP (Paso 2) y abrí una **sesión nueva**. |
 | "Claude Code no dejó consultar …" | Falta el permiso de modo automático (Paso 5). Agregá el nombre exacto que te muestra el panel. |
 | "Falta tu propiedad de Analytics" o "Falta tu cuenta de Meta" | Completá `/config` → tablero (Paso 4). |
-| Los números de **Hoy** dan todos abajo | Es normal: se comparan contra **ayer completo**. Mirá 7 o 30 días para ver tendencia. |
+| Los números dan todos abajo | Es normal a media tarde: se comparan contra **ayer completo**. |
 | `claude update` da `EACCES: permission denied` | Claude Code se instaló con `sudo`. Devolvé las carpetas a tu usuario y volvé a actualizar: `sudo chown -R -h "$(id -u)" ~/.local/share/claude ~/.local/bin/claude ~/.cache/claude ~/.local/state/claude` |
-| 30 días tarda en cargar | Trae todos los pedidos del período y del anterior para comparar. Unos segundos es normal. |
+
+---
+
+## Viví tu propia aventura
+
+Estos mods son un punto de partida, no un producto cerrado. **Descargalos y modificalos a piacere**: cambiá las métricas, sacá lo que no uses, sumá otro conector o armá uno nuevo desde cero. La licencia es MIT, así que podés usarlos, copiarlos y adaptarlos para tu negocio o para tus clientes.
+
+1. Bajá el repo:
+
+   ```bash
+   git clone https://github.com/matecocidocontortafritas/growth-lab-mods.git
+   ```
+
+2. Abrí Claude Code en la carpeta y pedile lo que quieras con tus palabras. Por ejemplo:
+   - *"Agregá al tablero los 5 productos más vendidos de hoy."*
+   - *"Sacá el bloque de Meta, no hago anuncios."*
+   - *"Hacé que /pedidos me avise con un sonido cuando entra un pedido nuevo."*
+   - *"Armame un mod nuevo que me muestre el stock bajo de Tiendanube."*
+
+   Claude Code ya sabe escribir mods, y mientras lo editás se recarga solo.
+3. Para usar tu versión en vez de la de este repo, sumá la carpeta del mod a `CLAUDE_CODE_PLUGIN_DIRS` en el bloque `env` de `~/.claude/settings.json`, por ejemplo `"CLAUDE_CODE_PLUGIN_DIRS": "~/growth-lab-mods/plugins/tablero"`. También podés probarla solo en una sesión de terminal con `claude --plugin-dir ./plugins/tablero`.
+
+Si hacés algo que le sirva a otros, abrí un pull request o compartilo: nos encanta ver qué arma cada uno.
 
 ---
 

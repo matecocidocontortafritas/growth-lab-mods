@@ -13,7 +13,7 @@
     },
     {
       "name": "tablero",
-      "description": "/tablero: ventas de Tiendanube + tráfico de Google Analytics + Meta Ads, con MER y conversión, para hoy / 7 / 30 días.",
+      "description": "/tablero: ventas de Tiendanube + tráfico de Google Analytics + Meta Ads de hoy, con MER y conversión, comparados con ayer.",
       "source": "./plugins/tablero",
       "category": "productivity",
       "author": { "name": "Growth Lab" }

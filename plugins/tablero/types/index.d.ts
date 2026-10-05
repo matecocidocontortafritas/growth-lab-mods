@@ -1,6 +1,4 @@
-export type Rango = 'hoy' | '7d' | '30d'
-
-/** Un número del período actual y el mismo del período anterior. */
+/** Un número de hoy y el mismo de ayer. */
 export type Par = { actual: number; anterior: number }
 
 export type Ventas = { cobrado: Par; pedidos: Par; pendiente: Par }
@@ -8,15 +6,21 @@ export type Ventas = { cobrado: Par; pedidos: Par; pendiente: Par }
 export type Trafico = {
   sesiones: Par
   usuarios: Par
+  nuevos: Par
+  sesionesPorUsuario: Par
+  /** Tiempo medio de la sesión, en segundos. */
+  duracionMedia: Par
+  vistasProducto: Par
   canales: { canal: string; sesiones: number }[]
 }
 
 export type Meta = {
-  gasto: Par
+  inversion: Par
+  impresiones: Par
+  clicks: Par
+  vistasProducto: Par
   compras: Par
   ingresosMeta: Par
-  clicks: Par
-  impresiones: Par
 }
 
 /** Cada fuente carga por su cuenta: si una falla, las otras se muestran igual. */
@@ -26,13 +30,12 @@ export type Tablero = {
   ventas: Fuente<Ventas>
   trafico: Fuente<Trafico>
   meta: Fuente<Meta>
-  desde: string
-  hasta: string
+  fecha: string
   actualizado?: string
 }
 
 declare module 'claude-code' {
   interface PluginState {
-    tablero: { rango: Rango; datos: Partial<Record<Rango, Tablero>> }
+    tablero: { hoy: Tablero | null }
   }
 }
